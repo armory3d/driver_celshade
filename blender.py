@@ -1,20 +1,15 @@
 import bpy
-import arm.props_renderpath
-import arm.material.make_shader
+import arm.api
 import arm.material.mat_state
 import arm.material.cycles
 import arm.material.make_mesh
-import arm.make_renderpath
 import arm.assets as assets
 import arm.utils
 
 def register():
-    arm.props_renderpath.add_driver('Celshade', draw_props)
-    arm.material.make_shader.make_rpass = make_rpass
-    arm.make_renderpath.make_hook = make_rpath
+    arm.api.add_driver('Celshade', draw_props, make_rpass, make_rpath)
 
 def draw_props(layout):
-    wrd = bpy.data.worlds['Arm']
     rpdat = arm.utils.get_rp()
 
     layout.prop(rpdat, "rp_shadowmap")
@@ -31,6 +26,8 @@ def draw_props(layout):
         layout.prop(rpdat, "rp_compositornodes")
     layout.prop(rpdat, 'arm_samples_per_pixel')
     layout.prop(rpdat, 'arm_texture_filter')
+    layout.prop(rpdat, 'arm_displacement')
+    layout.prop(rpdat, 'arm_clouds')
 
 def make_rpass(rpass):
     if rpass == 'mesh':
@@ -59,6 +56,7 @@ def make_mesh(rpass):
     frag.add_include('compiled.glsl')
     frag.add_uniform('vec3 lightDir', '_lampDirection')
     frag.add_uniform('vec3 lightColor', '_lampColor')
+    frag.add_uniform('float envmapStrength', link='_envmapStrength')
 
     frag.write('float visibility = 1.0;')
     frag.write('float dotNL = max(dot(n, lightDir), 0.0);')
@@ -72,7 +70,8 @@ def make_mesh(rpass):
         frag.add_include('std/shadows.glsl')
         frag.add_uniform('sampler2D shadowMap', included=True)
         frag.add_uniform('float shadowsBias', '_lampShadowsBias')
-        frag.write('    if (lampPos.w > 0.0) {')
+        frag.add_uniform('bool receiveShadow')
+        frag.write('    if (receiveShadow && lampPos.w > 0.0) {')
         frag.write('    vec3 lPos = lampPos.xyz / lampPos.w;')
         frag.write('    const float texelSize = 1.0 / shadowmapSize.x;')
         frag.write('    visibility = 0.0;')
@@ -82,8 +81,7 @@ def make_mesh(rpass):
         frag.write('    visibility += float(texture(shadowMap, lPos.xy + vec2(-texelSize, 0.0)).r + shadowsBias > lPos.z) * 0.25;')
         frag.write('    visibility += float(texture(shadowMap, lPos.xy + vec2(0.0, texelSize)).r + shadowsBias > lPos.z) * 0.5;')
         frag.write('    visibility += float(texture(shadowMap, lPos.xy + vec2(0.0, -texelSize)).r + shadowsBias > lPos.z) * 0.25;')
-        frag.write('    visibility /= 2.5;')
-        frag.write('    visibility = max(visibility, 0.5);')
+        frag.write('    visibility /= 5;')
         # frag.write('    visibility = max(float(texture(shadowMap, lPos.xy).r + shadowsBias > lPos.z), 0.5);')
         frag.write('    }')
 
@@ -120,7 +118,9 @@ def make_mesh(rpass):
         frag.prepend_header('vec3 n = normalize(wnormal);')
 
     frag.add_out('vec4 fragColor')
-    frag.write('fragColor = vec4(basecol * max(step(0.5, dotNL), 0.3) * visibility * lightColor, 1.0);')
+    frag.write('vec3 direct = basecol * max(step(0.5, dotNL), 0.0) * visibility * lightColor;')
+    frag.write('vec3 indirect = basecol * envmapStrength;')
+    frag.write('fragColor = vec4(direct + indirect, 1.0);')
 
     if '_LDR' in wrd.world_defs:
         frag.write('fragColor.rgb = pow(fragColor.rgb, vec3(1.0 / 2.2));')
@@ -143,6 +143,9 @@ def make_rpath():
     assets.add_khafile_def('rp_background={0}'.format(rpdat.rp_background))
     if rpdat.rp_background == 'World':
         assets.add_shader_pass('world_pass')
+        if '_EnvClouds' in wrd.world_defs:
+            assets.add(assets_path + 'noise256.png')
+            assets.add_embedded_data('noise256.png')
 
     if rpdat.rp_render_to_texture:
         assets.add_khafile_def('rp_render_to_texture')
