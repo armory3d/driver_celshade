@@ -24,6 +24,8 @@ def draw_props(layout):
         layout.prop(rpdat, "rp_supersampling")
         layout.prop(rpdat, "rp_antialiasing")
         layout.prop(rpdat, "rp_compositornodes")
+        layout.prop(rpdat, "rp_volumetriclight")
+        layout.prop(rpdat, "rp_bloom")
     layout.prop(rpdat, 'arm_samples_per_pixel')
     layout.prop(rpdat, 'arm_texture_filter')
     layout.prop(rpdat, 'arm_displacement')
@@ -73,16 +75,18 @@ def make_mesh(rpass):
         frag.add_uniform('bool receiveShadow')
         frag.write('    if (receiveShadow && lampPos.w > 0.0) {')
         frag.write('    vec3 lPos = lampPos.xyz / lampPos.w;')
-        frag.write('    const float texelSize = 1.0 / shadowmapSize.x;')
-        frag.write('    visibility = 0.0;')
-        # TODO: CSM
-        frag.write('    visibility += float(texture(shadowMap, lPos.xy).r + shadowsBias > lPos.z);')
-        frag.write('    visibility += float(texture(shadowMap, lPos.xy + vec2(texelSize, 0.0)).r + shadowsBias > lPos.z) * 0.5;')
-        frag.write('    visibility += float(texture(shadowMap, lPos.xy + vec2(-texelSize, 0.0)).r + shadowsBias > lPos.z) * 0.25;')
-        frag.write('    visibility += float(texture(shadowMap, lPos.xy + vec2(0.0, texelSize)).r + shadowsBias > lPos.z) * 0.5;')
-        frag.write('    visibility += float(texture(shadowMap, lPos.xy + vec2(0.0, -texelSize)).r + shadowsBias > lPos.z) * 0.25;')
-        frag.write('    visibility /= 5;')
-        # frag.write('    visibility = max(float(texture(shadowMap, lPos.xy).r + shadowsBias > lPos.z), 0.5);')
+
+        frag.write('    const vec2 smSize = shadowmapSize;')
+        frag.write('    visibility *= PCF(lPos.xy, lPos.z - shadowsBias, smSize);')
+
+        # frag.write('    const float texelSize = 1.0 / shadowmapSize.x;')
+        # frag.write('    visibility = 0.0;')
+        # frag.write('    visibility += float(texture(shadowMap, lPos.xy).r + shadowsBias > lPos.z);')
+        # frag.write('    visibility += float(texture(shadowMap, lPos.xy + vec2(texelSize, 0.0)).r + shadowsBias > lPos.z) * 0.5;')
+        # frag.write('    visibility += float(texture(shadowMap, lPos.xy + vec2(-texelSize, 0.0)).r + shadowsBias > lPos.z) * 0.25;')
+        # frag.write('    visibility += float(texture(shadowMap, lPos.xy + vec2(0.0, texelSize)).r + shadowsBias > lPos.z) * 0.5;')
+        # frag.write('    visibility += float(texture(shadowMap, lPos.xy + vec2(0.0, -texelSize)).r + shadowsBias > lPos.z) * 0.25;')
+        # frag.write('    visibility /= 2.5;')
         frag.write('    }')
 
     frag.write('vec3 basecol;')
@@ -118,7 +122,7 @@ def make_mesh(rpass):
         frag.prepend_header('vec3 n = normalize(wnormal);')
 
     frag.add_out('vec4 fragColor')
-    frag.write('vec3 direct = basecol * max(step(0.5, dotNL), 0.0) * visibility * lightColor;')
+    frag.write('vec3 direct = basecol * step(0.5, dotNL) * visibility * lightColor;')
     frag.write('vec3 indirect = basecol * envmapStrength;')
     frag.write('fragColor = vec4(direct + indirect, 1.0);')
 
@@ -135,6 +139,11 @@ def make_rpath():
     assets_path = arm.utils.get_sdk_path() + 'armory/Assets/'
     wrd = bpy.data.worlds['Arm']
     rpdat = arm.utils.get_rp()
+
+    if rpdat.rp_hdr:
+        assets.add_khafile_def('rp_hdr')
+    else:
+        wrd.world_defs += '_LDR'
 
     if rpdat.rp_shadowmap != 'Off':
         assets.add_khafile_def('rp_shadowmap')
@@ -212,3 +221,14 @@ def make_rpath():
         assets.add_khafile_def('rp_supersampling={0}'.format(rpdat.rp_supersampling))        
         if rpdat.rp_supersampling == '4':
             assets.add_shader_pass('supersample_resolve')
+
+        if rpdat.rp_volumetriclight:
+            assets.add_khafile_def('rp_volumetriclight')
+            assets.add_shader_pass('volumetric_light_quad')
+            assets.add_shader_pass('volumetric_light')
+            assets.add_shader_pass('blur_bilat_pass')
+
+        if rpdat.rp_bloom:
+            assets.add_khafile_def('rp_bloom')
+            assets.add_shader_pass('bloom_pass')
+            assets.add_shader_pass('blur_gaus_pass')
