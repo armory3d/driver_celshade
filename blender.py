@@ -1,8 +1,8 @@
 import bpy
 import arm.api
-import arm.material.mat_state
-import arm.material.cycles
-import arm.material.make_mesh
+import arm.material.mat_state as mat_state
+import arm.material.cycles as cycles
+import arm.material.make_mesh as make_mesh
 import arm.assets as assets
 import arm.utils
 
@@ -33,14 +33,14 @@ def draw_props(layout):
 
 def make_rpass(rpass):
     if rpass == 'mesh':
-        return make_mesh(rpass)
+        return make_mesh_pass(rpass)
     return None
 
-def make_mesh(rpass):
+def make_mesh_pass(rpass):
     con = { 'name': rpass, 'depth_write': True, 'compare_mode': 'less', 'cull_mode': 'clockwise' }
     
-    con_mesh = arm.material.mat_state.data.add_context(con)
-    arm.material.mat_state.con_mesh = con_mesh
+    con_mesh = mat_state.data.add_context(con)
+    mat_state.con_mesh = con_mesh
 
     wrd = bpy.data.worlds['Arm']
     vert = con_mesh.make_vert()
@@ -52,8 +52,6 @@ def make_mesh(rpass):
     vert.add_uniform('mat3 N', '_normalMatrix')
     vert.write_main_header('vec4 spos = vec4(pos, 1.0);')
     frag.ins = vert.outs
-    vert.add_uniform('mat4 WVP', '_worldViewProjectionMatrix')
-    vert.write('gl_Position = WVP * spos;')
 
     frag.add_include('compiled.glsl')
     frag.add_uniform('vec3 lightDir', '_lampDirection')
@@ -93,13 +91,15 @@ def make_mesh(rpass):
     frag.write('float roughness;')
     frag.write('float metallic;')
     frag.write('float occlusion;')
-    arm_discard = arm.material.mat_state.material.arm_discard
+    arm_discard = mat_state.material.arm_discard
     if arm_discard:
         frag.write('float opacity;')
-    arm.material.cycles.parse(arm.material.mat_state.nodes, con_mesh, vert, frag, geom, tesc, tese, parse_opacity=arm_discard, parse_displacement=False)
+    cycles.parse(mat_state.nodes, con_mesh, vert, frag, geom, tesc, tese, parse_opacity=arm_discard, parse_displacement=False)
+
+    make_mesh.write_vertpos(vert)
 
     if arm_discard:
-        opac = arm.material.mat_state.material.arm_discard_opacity
+        opac = mat_state.material.arm_discard_opacity
         frag.write('if (opacity < {0}) discard;'.format(opac))
 
     if con_mesh.is_elem('tex'):
@@ -112,13 +112,13 @@ def make_mesh(rpass):
 
     if con_mesh.is_elem('tang'):
         vert.add_out('mat3 TBN')
-        arm.material.make_mesh.write_norpos(con_mesh, vert, declare=True)
+        make_mesh.write_norpos(con_mesh, vert, declare=True)
         vert.write('vec3 tangent = normalize(N * tang);')
         vert.write('vec3 bitangent = normalize(cross(wnormal, tangent));')
         vert.write('TBN = mat3(tangent, bitangent, wnormal);')
     else:
         vert.add_out('vec3 wnormal')
-        arm.material.make_mesh.write_norpos(con_mesh, vert)
+        make_mesh.write_norpos(con_mesh, vert)
         frag.prepend_header('vec3 n = normalize(wnormal);')
 
     frag.add_out('vec4 fragColor')
@@ -131,7 +131,7 @@ def make_mesh(rpass):
 
     assets.vs_equal(con_mesh, assets.shader_cons['mesh_vert'])
 
-    arm.material.make_mesh.make_finalize(con_mesh)
+    make_mesh.make_finalize(con_mesh)
 
     return con_mesh
 

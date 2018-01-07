@@ -121,7 +121,7 @@ class RenderPathCreator {
 				t.displayp = getDisplayp();
 				t.format = "R8";
 				// var ss = getSuperSampling();
-				t.scale = 0.5;
+				// if (ss != 1) t.scale = ss;
 				path.createRenderTarget(t);
 			}
 			{
@@ -132,7 +132,7 @@ class RenderPathCreator {
 				t.displayp = getDisplayp();
 				t.format = "R8";
 				// var ss = getSuperSampling();
-				t.scale = 0.5;
+				// if (ss != 1) t.scale = ss;
 				path.createRenderTarget(t);
 			}
 		}
