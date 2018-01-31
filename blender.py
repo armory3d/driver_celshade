@@ -68,14 +68,14 @@ def make_mesh_pass(rpass):
         vert.add_uniform('mat4 LWVP', '_biasLampWorldViewProjectionMatrix')
         vert.write('lampPos = LWVP * spos;')
         frag.add_include('std/shadows.glsl')
-        frag.add_uniform('sampler2D shadowMap', included=True)
+        frag.add_uniform('sampler2D shadowMap')
         frag.add_uniform('float shadowsBias', '_lampShadowsBias')
         frag.add_uniform('bool receiveShadow')
         frag.write('    if (receiveShadow && lampPos.w > 0.0) {')
         frag.write('    vec3 lPos = lampPos.xyz / lampPos.w;')
 
         frag.write('    const vec2 smSize = shadowmapSize;')
-        frag.write('    visibility *= PCF(lPos.xy, lPos.z - shadowsBias, smSize);')
+        frag.write('    visibility *= PCF(shadowMap, lPos.xy, lPos.z - shadowsBias, smSize);')
 
         # frag.write('    const float texelSize = 1.0 / shadowmapSize.x;')
         # frag.write('    visibility = 0.0;')
