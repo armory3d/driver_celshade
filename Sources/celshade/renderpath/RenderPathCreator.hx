@@ -1,6 +1,7 @@
 package celshade.renderpath;
 
 import iron.RenderPath;
+import armory.renderpath.Inc;
 
 class RenderPathCreator {
 
@@ -8,6 +9,7 @@ class RenderPathCreator {
 
 	public static function get():RenderPath {
 		path = new RenderPath();
+		Inc.init(path);
 		init();
 		path.commands = commands;
 		return path;
@@ -15,9 +17,9 @@ class RenderPathCreator {
 
 	static function init() {
 
-		#if kha_webgl
-		initEmpty();
-		#end
+		// #if (rp_shadowmap && kha_webgl)
+		// Inc.initEmpty();
+		// #end
 
 		#if (rp_background == "World")
 		{
@@ -172,14 +174,7 @@ class RenderPathCreator {
 
 		#if rp_shadowmap
 		{
-			var faces = path.getLight(path.currentLightIndex).data.raw.shadowmap_cube ? 6 : 1;
-			for (i in 0...faces) {
-				if (faces > 1) path.currentFace = i;
-				path.setTarget(getShadowMap());
-				path.clearTarget(null, 1.0);
-				path.drawMeshes("shadowmap");
-			}
-			path.currentFace = -1;
+			Inc.drawShadowMap();
 		}
 		#end
 
@@ -205,7 +200,7 @@ class RenderPathCreator {
 
 		#if rp_shadowmap
 		{
-			bindShadowMap();
+			Inc.bindShadowMap();
 		}
 		#end
 
@@ -222,13 +217,13 @@ class RenderPathCreator {
 			{
 				path.setTarget("bufvola");
 				path.bindTarget("_main", "gbufferD");
-				bindShadowMap();
-				if (path.lightIsSun()) {
+				Inc.bindShadowMap();
+				// if (path.lightIsSun()) {
 					path.drawShader("shader_datas/volumetric_light_quad/volumetric_light_quad");
-				}
-				else {
-					path.drawLightVolume("shader_datas/volumetric_light/volumetric_light");
-				}
+				// }
+				// else {
+					// path.drawLightVolume("shader_datas/volumetric_light/volumetric_light");
+				// }
 
 				path.setTarget("bufvolb");
 				path.bindTarget("bufvola", "tex");
@@ -326,33 +321,10 @@ class RenderPathCreator {
 				path.bindTarget("bufa", "edgesTex");
 				path.drawShader("shader_datas/smaa_blend_weight/smaa_blend_weight");
 
-				// #if (rp_antialiasing == "TAA")
-				// path.setTarget("bufa");
-				// #else
 				path.setTarget(framebuffer);
-				// #end
 				path.bindTarget("lbuf", "colorTex");
 				path.bindTarget("bufb", "blendTex");
-				// #if (rp_antialiasing == "TAA")
-				// {
-					// path.bindTarget("gbuffer2", "sveloc");
-				// }
-				// #end
 				path.drawShader("shader_datas/smaa_neighborhood_blend/smaa_neighborhood_blend");
-
-				// #if (rp_antialiasing == "TAA")
-				// {
-				// 	path.setTarget(framebuffer);
-				// 	path.bindTarget("bufa", "tex");
-				// 	path.bindTarget("taa", "tex2");
-				// 	path.bindTarget("gbuffer2", "sveloc");
-				// 	path.drawShader("shader_datas/taa_pass/taa_pass");
-
-				// 	path.setTarget("taa");
-				// 	path.bindTarget("bufa", "tex");
-				// 	path.drawShader("shader_datas/copy_pass/copy_pass");
-				// }
-				// #end
 			}
 			#end
 
@@ -393,78 +365,4 @@ class RenderPathCreator {
 		return null;
 		#end
 	}
-
-	static function bindShadowMap() {
-		var target = shadowMapName();
-		if (target == "shadowMapCube") {
-			#if kha_webgl
-			// Bind empty map to non-cubemap sampler to keep webgl happy
-			path.bindTarget("arm_empty", "shadowMap");
-			#end
-			path.bindTarget("shadowMapCube", "shadowMapCube");
-		}
-		else {
-			#if kha_webgl
-			// Bind empty map to cubemap sampler
-			path.bindTarget("arm_empty_cube", "shadowMapCube");
-			#end
-			path.bindTarget("shadowMap", "shadowMap");
-		}
-	}
-
-	static function shadowMapName():String {
-		return path.getLight(path.currentLightIndex).data.raw.shadowmap_cube ? "shadowMapCube" : "shadowMap";
-	}
-
-	static function getShadowMap():String {
-		var target = shadowMapName();
-		var rt = path.renderTargets.get(target);
-		// Create shadowmap on the fly
-		if (rt == null) {
-			if (path.getLight(path.currentLightIndex).data.raw.shadowmap_cube) {
-				// Cubemap size
-				var size = Std.int(path.getLight(path.currentLightIndex).data.raw.shadowmap_size);
-				var t = new RenderTargetRaw();
-				t.name = target;
-				t.width = size;
-				t.height = size;
-				t.format = "DEPTH16";
-				t.is_cubemap = true;
-				rt = path.createRenderTarget(t);
-			}
-			else { // Non-cube sm
-				var sizew = path.getLight(path.currentLightIndex).data.raw.shadowmap_size;
-				var sizeh = sizew;
-				#if arm_csm // Cascades - atlas on x axis
-				sizew = sizeh * iron.object.LightObject.cascadeCount;
-				#end
-				var t = new RenderTargetRaw();
-				t.name = target;
-				t.width = sizew;
-				t.height = sizeh;
-				t.format = "DEPTH16";
-				rt = path.createRenderTarget(t);
-			}
-		}
-		return target;
-	}
-
-	#if kha_webgl
-	static function initEmpty() {
-		// Bind empty when requested target is not found
-		var tempty = new RenderTargetRaw();
-		tempty.name = "arm_empty";
-		tempty.width = 1;
-		tempty.height = 1;
-		tempty.format = "DEPTH16";
-		path.createRenderTarget(tempty);
-		var temptyCube = new RenderTargetRaw();
-		temptyCube.name = "arm_empty_cube";
-		temptyCube.width = 1;
-		temptyCube.height = 1;
-		temptyCube.format = "DEPTH16";
-		temptyCube.is_cubemap = true;
-		path.createRenderTarget(temptyCube);
-	}
-	#end
 }
