@@ -4,6 +4,7 @@ import arm.material.mat_state as mat_state
 import arm.material.cycles as cycles
 import arm.material.make_attrib as make_attrib
 import arm.material.make_finalize as make_finalize
+import arm.material.mat_utils as mat_utils
 import arm.assets as assets
 import arm.utils
 
@@ -61,12 +62,20 @@ def make_mesh_pass(rpass):
     frag.write('float metallic;')
     frag.write('float occlusion;')
     frag.write('float specular;')
+    is_displacement = mat_utils.disp_linked(mat_state.output_node)
     arm_discard = mat_state.material.arm_discard
     if arm_discard:
         frag.write('float opacity;')
-    cycles.parse(mat_state.nodes, con_mesh, vert, frag, geom, tesc, tese, parse_opacity=arm_discard, parse_displacement=False)
+    cycles.parse(mat_state.nodes, con_mesh, vert, frag, geom, tesc, tese, parse_opacity=arm_discard, parse_displacement=is_displacement)
 
-    make_attrib.write_vertpos(vert)
+    if is_displacement:
+        vert.add_uniform('mat4 W', link='_worldMatrix')
+        vert.add_uniform('mat4 VP', link='_viewProjectionMatrix')
+        vert.write('vec4 wpos = W * spos;')
+        vert.write('wpos.xyz += wnormal * disp * 0.1;')
+        vert.write('gl_Position = VP * wpos;')
+    else:
+        make_attrib.write_vertpos(vert)
 
     if arm_discard:
         opac = mat_state.material.arm_discard_opacity
@@ -75,11 +84,11 @@ def make_mesh_pass(rpass):
     if con_mesh.is_elem('tex'):
         vert.add_out('vec2 texCoord')
         vert.add_uniform('float texUnpack', link='_texUnpack')
-        vert.write('texCoord = tex * texUnpack;')
+        vert.write_attrib('texCoord = tex * texUnpack;')
 
     if con_mesh.is_elem('col'):
         vert.add_out('vec3 vcolor')
-        vert.write('vcolor = col;')
+        vert.write_attrib('vcolor = col;')
 
     if con_mesh.is_elem('tang'):
         vert.add_out('mat3 TBN')
