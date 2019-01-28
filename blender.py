@@ -126,6 +126,7 @@ def make_rpath():
         wrd.world_defs += '_LDR'
 
     if rpdat.rp_shadows:
+        wrd.world_defs += '_ShadowMap'
         assets.add_khafile_def('rp_shadowmap')
         assets.add_khafile_def('rp_shadowmap_cascade={0}'.format(rpdat.rp_shadowmap_cascade))
         assets.add_khafile_def('rp_shadowmap_cube={0}'.format(rpdat.rp_shadowmap_cube))
@@ -208,8 +209,8 @@ def make_rpath():
             assets.add_shader_pass('supersample_resolve')
 
         if rpdat.rp_volumetriclight:
+            wrd.world_defs += '_Sun'
             assets.add_khafile_def('rp_volumetriclight')
-            assets.add_shader_pass('volumetric_light_quad')
             assets.add_shader_pass('volumetric_light')
             assets.add_shader_pass('blur_bilat_pass')
             assets.add_shader_pass('blur_bilat_blend_pass')
