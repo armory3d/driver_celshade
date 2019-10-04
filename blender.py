@@ -21,7 +21,7 @@ def make_rpass(rpass):
 
 def make_mesh_pass(rpass):
     con = { 'name': rpass, 'depth_write': True, 'compare_mode': 'less', 'cull_mode': 'clockwise' }
-    
+
     con_mesh = mat_state.data.add_context(con)
     mat_state.con_mesh = con_mesh
 
@@ -37,11 +37,11 @@ def make_mesh_pass(rpass):
     frag.ins = vert.outs
 
     frag.add_include('compiled.glsl')
-    frag.add_uniform('vec3 lightDir', '_lightDirection')
-    frag.add_uniform('vec3 lightColor', '_lightColor')
+    frag.add_uniform('vec3 sunDir', '_sunDirection')
+    frag.add_uniform('vec3 sunCol', '_sunColor')
     frag.add_uniform('float envmapStrength', link='_envmapStrength')
     frag.write('float visibility = 1.0;')
-    frag.write('float dotNL = max(dot(n, lightDir), 0.0);')
+    frag.write('float dotNL = max(dot(n, sunDir), 0.0);')
 
     is_shadows = '_ShadowMap' in wrd.world_defs
     if is_shadows:
@@ -50,7 +50,7 @@ def make_mesh_pass(rpass):
         vert.write('lightPos = LWVP * spos;')
         frag.add_include('std/shadows.glsl')
         frag.add_uniform('sampler2DShadow shadowMap')
-        frag.add_uniform('float shadowsBias', '_lightShadowsBias')
+        frag.add_uniform('float shadowsBias', '_sunShadowsBias')
         frag.write('if (lightPos.w > 0.0) {')
         frag.write('vec3 lPos = lightPos.xyz / lightPos.w;')
         frag.write('const vec2 smSize = shadowmapSize;')
@@ -102,7 +102,7 @@ def make_mesh_pass(rpass):
         frag.write_attrib('vec3 n = normalize(wnormal);')
 
     frag.add_out('vec4 fragColor')
-    frag.write('vec3 direct = basecol * step(0.5, dotNL) * visibility * lightColor;')
+    frag.write('vec3 direct = basecol * step(0.5, dotNL) * visibility * sunCol;')
     frag.write('vec3 indirect = basecol * envmapStrength;')
     frag.write('fragColor = vec4(direct + indirect, 1.0);')
 
@@ -204,7 +204,7 @@ def make_rpath():
             if rpdat.rp_antialiasing == 'TAA':
                 assets.add_khafile_def('arm_taa')
 
-        assets.add_khafile_def('rp_supersampling={0}'.format(rpdat.rp_supersampling))        
+        assets.add_khafile_def('rp_supersampling={0}'.format(rpdat.rp_supersampling))
         if rpdat.rp_supersampling == '4':
             assets.add_shader_pass('supersample_resolve')
 
