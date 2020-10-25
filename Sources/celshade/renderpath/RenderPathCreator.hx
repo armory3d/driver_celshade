@@ -1,6 +1,7 @@
 package celshade.renderpath;
 
 import iron.RenderPath;
+import iron.Scene;
 import armory.renderpath.Inc;
 
 class RenderPathCreator {
@@ -15,17 +16,23 @@ class RenderPathCreator {
 		return path;
 	}
 
+	public static function setTargetMeshes() {
+		#if rp_render_to_texture
+		{
+			path.setTarget("lbuf");
+		}
+		#else
+		{
+			path.setTarget("");
+		}
+		#end
+	}
+
 	static function init() {
 
 		// #if (rp_shadowmap && kha_webgl)
 		// Inc.initEmpty();
 		// #end
-
-		#if (rp_background == "World")
-		{
-			path.loadShader("shader_datas/world_pass/world_pass");
-		}
-		#end
 
 		#if rp_render_to_texture
 		{
@@ -36,10 +43,9 @@ class RenderPathCreator {
 				t.name = "lbuf";
 				t.width = 0;
 				t.height = 0;
-				t.format = getHdrFormat();
-				t.displayp = getDisplayp();
-				var ss = getSuperSampling();
-				if (ss != 1) t.scale = ss;
+				t.format = Inc.getHdrFormat();
+				t.displayp = Inc.getDisplayp();
+				t.scale = Inc.getSuperSampling();
 				t.depth_buffer = "main";
 				path.createRenderTarget(t);
 			}
@@ -61,9 +67,8 @@ class RenderPathCreator {
 				t.width = 0;
 				t.height = 0;
 				t.format = 'RGBA32';
-				t.displayp = getDisplayp();
-				var ss = getSuperSampling();
-				if (ss != 1) t.scale = ss;
+				t.displayp = Inc.getDisplayp();
+				t.scale = Inc.getSuperSampling();
 				t.depth_buffer = "main";
 				path.createRenderTarget(t);
 
@@ -79,10 +84,9 @@ class RenderPathCreator {
 			t.name = "bufa";
 			t.width = 0;
 			t.height = 0;
-			t.displayp = getDisplayp();
+			t.displayp = Inc.getDisplayp();
 			t.format = "RGBA32";
-			var ss = getSuperSampling();
-			if (ss != 1) t.scale = ss;
+			t.scale = Inc.getSuperSampling();
 			path.createRenderTarget(t);
 		}
 		{
@@ -90,10 +94,9 @@ class RenderPathCreator {
 			t.name = "bufb";
 			t.width = 0;
 			t.height = 0;
-			t.displayp = getDisplayp();
+			t.displayp = Inc.getDisplayp();
 			t.format = "RGBA32";
-			var ss = getSuperSampling();
-			if (ss != 1) t.scale = ss;
+			t.scale = Inc.getSuperSampling();
 			path.createRenderTarget(t);
 		}
 		{
@@ -119,7 +122,7 @@ class RenderPathCreator {
 				t.name = "singlea";
 				t.width = 0;
 				t.height = 0;
-				t.displayp = getDisplayp();
+				t.displayp = Inc.getDisplayp();
 				t.format = "R8";
 				path.createRenderTarget(t);
 			}
@@ -128,7 +131,7 @@ class RenderPathCreator {
 				t.name = "singleb";
 				t.width = 0;
 				t.height = 0;
-				t.displayp = getDisplayp();
+				t.displayp = Inc.getDisplayp();
 				t.format = "R8";
 				path.createRenderTarget(t);
 			}
@@ -142,7 +145,7 @@ class RenderPathCreator {
 			t.width = 0;
 			t.height = 0;
 			t.scale = 0.25;
-			t.format = getHdrFormat();
+			t.format = Inc.getHdrFormat();
 			path.createRenderTarget(t);
 		}
 
@@ -152,7 +155,7 @@ class RenderPathCreator {
 			t.width = 0;
 			t.height = 0;
 			t.scale = 0.25;
-			t.format = getHdrFormat();
+			t.format = Inc.getHdrFormat();
 			path.createRenderTarget(t);
 		}
 
@@ -173,15 +176,7 @@ class RenderPathCreator {
 		}
 		#end
 
-		#if rp_render_to_texture
-		{
-			path.setTarget("lbuf");
-		}
-		#else
-		{
-			path.setTarget("");
-		}
-		#end
+		setTargetMeshes();
 
 		#if (rp_background == "Clear")
 		{
@@ -202,7 +197,10 @@ class RenderPathCreator {
 		path.drawMeshes("mesh");
 		#if (rp_background == "World")
 		{
-			path.drawSkydome("shader_datas/world_pass/world_pass");
+			if (Scene.active.raw.world_ref != null) {
+				setTargetMeshes();
+				path.drawSkydome("shader_datas/World_" + Scene.active.raw.world_ref + "/World_" + Scene.active.raw.world_ref);
+			}
 		}
 		#end
 
@@ -271,16 +269,7 @@ class RenderPathCreator {
 			var framebuffer = "";
 			#end
 
-			#if ((rp_antialiasing == "Off") || (rp_antialiasing == "FXAA"))
-			{
-				path.setTarget(framebuffer);
-			}
-			#else
-			{
-				path.setTarget("buf");
-			}
-			#end
-
+			path.setTarget(framebuffer);
 			path.bindTarget("lbuf", "tex");
 
 			#if rp_compositordepth
@@ -327,32 +316,6 @@ class RenderPathCreator {
 			}
 			#end
 		}
-		#end
-	}
-
-	static inline function getSuperSampling():Int {
-		#if (rp_supersampling == 2)
-		return 2;
-		#elseif (rp_supersampling == 4)
-		return 4;
-		#else
-		return 1;
-		#end
-	}
-
-	static inline function getHdrFormat():String {
-		#if rp_hdr
-		return "RGBA64";
-		#else
-		return "RGBA32";
-		#end
-	}
-
-	public static inline function getDisplayp():Null<Int> {
-		#if rp_resolution_filter // Custom resolution set
-		return Main.resolutionSize;
-		#else
-		return null;
 		#end
 	}
 }

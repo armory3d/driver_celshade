@@ -63,6 +63,7 @@ def make_mesh_pass(rpass):
     frag.write('float metallic;')
     frag.write('float occlusion;')
     frag.write('float specular;')
+    frag.write('float emission;')
     is_displacement = mat_utils.disp_linked(mat_state.output_node)
     arm_discard = mat_state.material.arm_discard
     if arm_discard:
@@ -134,7 +135,6 @@ def make_rpath():
 
     assets.add_khafile_def('rp_background={0}'.format(rpdat.rp_background))
     if rpdat.rp_background == 'World':
-        assets.add_shader_pass('world_pass')
         if '_EnvClouds' in wrd.world_defs:
             assets.add(assets_path + 'noise256.png')
             assets.add_embedded_data('noise256.png')
