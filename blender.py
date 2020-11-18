@@ -1,4 +1,6 @@
 import bpy
+from bpy.props import FloatProperty, FloatVectorProperty
+
 import arm.api
 import arm.material.mat_state as mat_state
 import arm.material.cycles as cycles
@@ -8,22 +10,51 @@ import arm.material.mat_utils as mat_utils
 import arm.assets as assets
 import arm.utils
 
+
 def register():
-    arm.api.add_driver('Celshade', draw_props, make_rpass, make_rpath)
+    register_props()
+
+    arm.api.add_driver('Celshade', make_rpass, make_rpath, draw_props, draw_mat_props)
+
+
+def register_props():
+    bpy.types.Material.arm_celshade_shade_color = FloatVectorProperty(
+        name='Shade Color (Multiply)',
+        description='The shading color for this material. It is multiplied with the base color',
+        size=3,
+        min=0.0, max=1.0, default=[0.0, 0.0, 0.0],
+        subtype='COLOR'
+    )
+
+    bpy.types.Material.arm_celshade_shade_softness = FloatProperty(
+        name='Shade Softness',
+        description='The amount of smoothing between shaded and lit parts of the material',
+        min=0.0, max=0.5, default=0.0
+    )
+
 
 def draw_props(layout):
     rpdat = arm.utils.get_rp()
+
+
+def draw_mat_props(layout: bpy.types.UILayout, mat: bpy.types.Material):
+    col = layout.column(align=True)
+    col.prop(mat, 'arm_celshade_shade_color')
+    col.prop(mat, 'arm_celshade_shade_softness')
+
 
 def make_rpass(rpass):
     if rpass == 'mesh':
         return make_mesh_pass(rpass)
     return None
 
+
 def make_mesh_pass(rpass):
-    con = { 'name': rpass, 'depth_write': True, 'compare_mode': 'less', 'cull_mode': 'clockwise' }
+    con = {'name': rpass, 'depth_write': True, 'compare_mode': 'less', 'cull_mode': 'clockwise'}
 
     con_mesh = mat_state.data.add_context(con)
     mat_state.con_mesh = con_mesh
+    mat = con_mesh.material
 
     wrd = bpy.data.worlds['Arm']
     vert = con_mesh.make_vert()
@@ -104,7 +135,14 @@ def make_mesh_pass(rpass):
         frag.write_attrib('vec3 n = normalize(wnormal);')
 
     frag.add_out('vec4 fragColor')
-    frag.write('vec3 direct = basecol * step(0.5, dotNL) * visibility * sunCol;')
+    frag.write(f'vec3 shade = basecol * {cycles.to_vec3(mat.arm_celshade_shade_color)};')
+
+    s = mat.arm_celshade_shade_softness
+    if s == 0.0:
+        frag.write('vec3 direct = mix(shade, basecol, step(0.5, dotNL)) * visibility * sunCol;')
+    else:
+        frag.write(f'vec3 direct = mix(shade, basecol, smoothstep({0.5 - s}, {0.5 + s}, dotNL)) * visibility * sunCol;')
+
     frag.write('vec3 indirect = basecol * envmapStrength;')
     frag.write('fragColor = vec4(direct + indirect, 1.0);')
 
