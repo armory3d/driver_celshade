@@ -218,6 +218,8 @@ def make_rpath():
                 wrd.compo_defs += '_CTexStep'
             if '_CDOF' in wrd.compo_defs or '_CFog' in wrd.compo_defs or '_CGlare' in wrd.compo_defs:
                 wrd.compo_defs += '_CCameraProj'
+            if rpdat.rp_pp:
+                wrd.compo_defs += '_CPostprocess'
             assets.add_shader_pass('compositor_pass')
         else:
             assets.add_shader_pass('copy_pass')
