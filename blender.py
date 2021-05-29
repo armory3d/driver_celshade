@@ -107,8 +107,6 @@ def make_mesh_pass(rpass):
         vert.write('vec4 wpos = W * spos;')
         vert.write('wpos.xyz += wnormal * disp * 0.1;')
         vert.write('gl_Position = VP * wpos;')
-    else:
-        make_attrib.write_vertpos(vert)
 
     if arm_discard:
         opac = mat_state.material.arm_discard_opacity
@@ -149,6 +147,7 @@ def make_mesh_pass(rpass):
     if '_LDR' in wrd.world_defs:
         frag.write('fragColor.rgb = pow(fragColor.rgb, vec3(1.0 / 2.2));')
 
+    make_attrib.write_vertpos(vert)
     assets.vs_equal(con_mesh, assets.shader_cons['mesh_vert'])
 
     make_finalize.make(con_mesh)
