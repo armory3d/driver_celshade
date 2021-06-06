@@ -144,7 +144,7 @@ def make_mesh_pass(rpass):
         vert.add_uniform('mat4 W', link='_worldMatrix')
         vert.add_uniform('mat4 VP', link='_viewProjectionMatrix')
         vert.write('vec4 wpos = W * spos;')
-        vert.write('wpos.xyz += wnormal * disp * 0.1;')
+        vert.write('wpos.xyz += wnormal * disp;')
         vert.write('gl_Position = VP * wpos;')
     else:
         make_attrib.write_vertpos(vert)
