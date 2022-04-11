@@ -156,7 +156,7 @@ def make_mesh_pass(rpass):
     return con_mesh
 
 def make_rpath():
-    assets_path = arm.utils.get_sdk_path() + 'armory/Assets/'
+    assets_path = arm.utils.get_sdk_path() + '/armory/Assets/'
     wrd = bpy.data.worlds['Arm']
     rpdat = arm.utils.get_rp()
 
