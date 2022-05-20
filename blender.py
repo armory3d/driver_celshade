@@ -105,10 +105,7 @@ def make_mesh_pass(rpass):
         opac = mat_state.material.arm_discard_opacity
         frag.write('if (opacity < {0}) discard;'.format(opac))
 
-    if con_mesh.is_elem('tex'):
-        vert.add_out('vec2 texCoord')
-        vert.add_uniform('float texUnpack', link='_texUnpack')
-        vert.write_attrib('texCoord = tex * texUnpack;')
+    make_attrib.write_tex_coords(con_mesh, vert, frag, tese)
 
     if con_mesh.is_elem('col'):
         vert.add_out('vec3 vcolor')
