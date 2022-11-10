@@ -94,7 +94,7 @@ def make_mesh_pass(rpass):
     frag.write('float metallic;')
     frag.write('float occlusion;')
     frag.write('float specular;')
-    frag.write('float emission;')
+    frag.write('vec3 emissionCol;')
     is_displacement = mat_utils.disp_linked(mat_state.output_node)
     arm_discard = mat_state.material.arm_discard
     if arm_discard:
@@ -145,7 +145,7 @@ def make_mesh_pass(rpass):
         vert.write('gl_Position = VP * wpos;')
     else:
         make_attrib.write_vertpos(vert)
-        
+
     assets.vs_equal(con_mesh, assets.shader_cons['mesh_vert'])
 
     make_finalize.make(con_mesh)
